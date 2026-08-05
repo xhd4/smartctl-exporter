@@ -33,7 +33,7 @@ DOCKER_BUILD := docker build \
 	-f "$(CURDIR)/Dockerfile" \
 	"$(CURDIR)"
 
-.PHONY: help docker-build-host package-win docker-win clean
+.PHONY: help docker-build-host package-win docker-win clean versioninfo go-build-win
 
 .DEFAULT_GOAL := help
 
@@ -42,10 +42,26 @@ help:
 	@echo ""
 	@echo "  docker-build-host    Build $(HOST_EXE) via Docker into $(PACKAGE_DIR)/"
 	@echo "  package-win          build → $(OUT_EXE)"
+	@echo "  go-build-win         Local Go cross-build → $(OUT_EXE) (with VERSIONINFO)"
 	@echo "  docker-win           stop service, rebuild host, start service (Windows)"
 	@echo "  clean                Remove $(DIST_DIR)/"
 	@echo ""
 	@echo "Variables: SMARTCTL_EXPORTER_VERSION GIT_COMMIT GOARCH (amd64|arm64)"
+
+versioninfo:
+	@chmod +x "$(CURDIR)/scripts/gen-versioninfo.sh"
+	"$(CURDIR)/scripts/gen-versioninfo.sh" \
+		"$(SMARTCTL_EXPORTER_VERSION)" \
+		"$(GIT_COMMIT)" \
+		"$(GOARCH)" \
+		"$(CURDIR)/cmd/smartctl-exporter/resource.syso"
+
+go-build-win: versioninfo
+	$(MKDIR_CMD)
+	CGO_ENABLED=0 GOOS=windows GOARCH=$(GOARCH) go build -trimpath \
+		-ldflags="-s -w -X main.version=$(SMARTCTL_EXPORTER_VERSION) -X main.commit=$(GIT_COMMIT)" \
+		-o $(OUT_EXE) ./cmd/smartctl-exporter
+	@echo "Built $(OUT_EXE)"
 
 docker-build-host:
 	$(MKDIR_CMD)

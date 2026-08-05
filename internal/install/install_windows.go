@@ -3,6 +3,7 @@
 package install
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -65,12 +66,7 @@ func Install(cfg config.Config, dryRun bool) error {
 	if _, err := os.Stat(cwdConfig); err == nil {
 		cwdAction = "(keep existing)"
 	}
-	pfExists := false
-	pfAction := "(copy from cwd)"
-	if _, err := os.Stat(configDest); err == nil {
-		pfExists = true
-		pfAction = "(keep existing)"
-	}
+	pfAction := installConfigAction(cwdConfig, configDest)
 
 	printPlan("Install plan", dryRun, []string{
 		fmt.Sprintf("Copy: %s -> %s", sourceHost, hostDest),
@@ -115,20 +111,20 @@ func Install(cfg config.Config, dryRun bool) error {
 		}
 	}
 
-	if !pfExists {
+	if needsConfigSync(cwdConfig, configDest) {
 		if err := copyFile(cwdConfig, configDest); err != nil {
 			return err
 		}
-	} else {
-		loaded, err := config.Load(installDir, configDest, nil)
-		if err != nil {
-			return err
-		}
-		cfg = loaded
-		port, err = cfg.ListenPort()
-		if err != nil {
-			return err
-		}
+	}
+
+	loaded, err := config.Load(installDir, configDest, nil)
+	if err != nil {
+		return err
+	}
+	cfg = loaded
+	port, err = cfg.ListenPort()
+	if err != nil {
+		return err
 	}
 
 	_ = firewall.DeleteAll()
@@ -262,4 +258,31 @@ func copyFile(src, dst string) error {
 func killByName(name string) {
 	cmd := exec.Command("taskkill", "/F", "/IM", name+".exe")
 	_ = cmd.Run()
+}
+
+func installConfigAction(cwdPath, pfPath string) string {
+	pfData, err := os.ReadFile(pfPath)
+	if err != nil {
+		return "(copy from cwd)"
+	}
+	cwdData, err := os.ReadFile(cwdPath)
+	if err != nil {
+		return "(copy from cwd)"
+	}
+	if bytes.Equal(cwdData, pfData) {
+		return "(unchanged)"
+	}
+	return "(update from cwd)"
+}
+
+func needsConfigSync(cwdPath, pfPath string) bool {
+	pfData, err := os.ReadFile(pfPath)
+	if err != nil {
+		return true
+	}
+	cwdData, err := os.ReadFile(cwdPath)
+	if err != nil {
+		return true
+	}
+	return !bytes.Equal(cwdData, pfData)
 }

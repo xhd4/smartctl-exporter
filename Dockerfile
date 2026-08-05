@@ -13,6 +13,14 @@ RUN go mod download
 
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
+COPY scripts/gen-versioninfo.sh ./scripts/gen-versioninfo.sh
+
+RUN chmod +x scripts/gen-versioninfo.sh \
+ && ./scripts/gen-versioninfo.sh \
+      "${SMARTCTL_EXPORTER_VERSION}" \
+      "${GIT_COMMIT}" \
+      "${GOARCH}" \
+      cmd/smartctl-exporter/resource.syso
 
 RUN CGO_ENABLED=0 GOOS=windows GOARCH=${GOARCH} go build -trimpath \
     -ldflags="-s -w -X main.version=${SMARTCTL_EXPORTER_VERSION} -X main.commit=${GIT_COMMIT}" \
