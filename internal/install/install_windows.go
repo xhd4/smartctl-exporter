@@ -177,15 +177,7 @@ func ensureAdmin() error {
 		return err
 	}
 	defer token.Close()
-	sid, err := windows.CreateWellKnownSid(windows.WinBuiltinAdministratorsSid)
-	if err != nil {
-		return err
-	}
-	isMember, err := token.IsMember(sid)
-	if err != nil {
-		return err
-	}
-	if !isMember {
+	if !token.IsElevated() {
 		return fmt.Errorf("Administrator privileges are required. Run elevated")
 	}
 	return nil
