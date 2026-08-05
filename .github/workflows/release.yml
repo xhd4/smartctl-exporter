@@ -25,10 +25,12 @@ jobs:
           set -euo pipefail
           VER="${SMARTCTL_EXPORTER_VERSION}"
           case "$VER" in v*) ;; *) VER="v$VER" ;; esac
+          COMMIT="$(git rev-parse --short HEAD)"
           mkdir -p dist
           docker build \
             --target artifact \
             --build-arg SMARTCTL_EXPORTER_VERSION="$VER" \
+            --build-arg GIT_COMMIT="$COMMIT" \
             --build-arg GOARCH="${{ matrix.goarch }}" \
             --output type=local,dest=./dist/out-${{ matrix.goarch }} \
             .

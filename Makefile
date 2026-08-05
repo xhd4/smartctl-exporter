@@ -6,6 +6,7 @@ ARCH ?= windows-$(GOARCH)
 SERVICE_NAME ?= smartctl-exporter
 HOST_EXE ?= smartctl-exporter.exe
 SMARTCTL_EXPORTER_VERSION ?= v0.14.0
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 PACKAGE_DIR := $(DIST_DIR)/$(ARCH)
 OUT_EXE := $(DIST_DIR)/smartctl-exporter-$(GOARCH).exe
 
@@ -26,6 +27,7 @@ endif
 DOCKER_BUILD := docker build \
 	--target artifact \
 	--build-arg SMARTCTL_EXPORTER_VERSION=$(SMARTCTL_EXPORTER_VERSION) \
+	--build-arg GIT_COMMIT=$(GIT_COMMIT) \
 	--build-arg GOARCH=$(GOARCH) \
 	--output type=local,dest=./$(PACKAGE_DIR) \
 	-f "$(CURDIR)/Dockerfile" \
@@ -43,7 +45,7 @@ help:
 	@echo "  docker-win           stop service, rebuild host, start service (Windows)"
 	@echo "  clean                Remove $(DIST_DIR)/"
 	@echo ""
-	@echo "Variables: SMARTCTL_EXPORTER_VERSION GOARCH (amd64|arm64)"
+	@echo "Variables: SMARTCTL_EXPORTER_VERSION GIT_COMMIT GOARCH (amd64|arm64)"
 
 docker-build-host:
 	$(MKDIR_CMD)

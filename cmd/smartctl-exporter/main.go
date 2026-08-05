@@ -18,7 +18,18 @@ import (
 	"smartctl-exporter/internal/install"
 )
 
-var version = "dev"
+// Set via -ldflags "-X main.version=… -X main.commit=…"
+var (
+	version = "dev"
+	commit  = "unknown"
+)
+
+func fullVersion() string {
+	if commit == "" || commit == "unknown" {
+		return version
+	}
+	return fmt.Sprintf("%s (%s)", version, commit)
+}
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -70,7 +81,7 @@ func main() {
 		return
 	}
 	if showVersion {
-		fmt.Println(version)
+		fmt.Println(fullVersion())
 		return
 	}
 
@@ -165,7 +176,10 @@ func parseOverride(arg string, args []string, i *int) (string, string, bool) {
 }
 
 func printHelp() {
-	fmt.Print(`smartctl-exporter - Windows service for S.M.A.R.T. metrics (vendored smartctl_exporter)
+	fmt.Printf(`smartctl-exporter %s
+Windows service hosting prometheus-community/smartctl_exporter in-process.
+Exposes S.M.A.R.T. disk metrics via smartctl. Configuration follows
+prometheus-community/windows_exporter conventions (config.yaml, dotted CLI flags).
 
 Usage:
   smartctl-exporter.exe [options]
@@ -173,24 +187,31 @@ Usage:
   smartctl-exporter.exe --uninstall [--dry-run]
 
 Operational:
-  --install                 Install to Program Files, register service and firewall
-  --uninstall               Remove service, firewall, Program Files and ProgramData
-  --dry-run                 Preview install/uninstall without changes
-  --config.file PATH        YAML config (default: ./config.yaml next to exe)
-  --help, -h
-  --version
-  --print-config
+  --install                   Install to Program Files, register service and firewall
+  --uninstall                 Remove service, firewall, Program Files and ProgramData
+  --dry-run                   Preview install/uninstall without changes
+  --config.file PATH          YAML config (default: ./config.yaml next to exe)
+  --help, -h                  Show this help
+  --version                   Show version and git commit
+  --print-config              Print resolved config.yaml and exit
 
-Config (CLI / YAML / env):
-  --web.listen-address ADDR   env LISTEN_ADDR
-  --telemetry.path PATH       env TELEMETRY_PATH
-  --log.level LEVEL           env LOG_LEVEL
-  --log.file PATH             env LOG_FILE
-  --smartctl.path PATH        env SMARTCTL_PATH
-  --smartctl.installer-version VER
-  --firewall.enabled BOOL     env FW_ENABLED
-  --firewall.profile NAME     env FW_PROFILE (domain|private|public|any)
-`)
+Global (windows_exporter-compatible):
+  --web.listen-address ADDR   e.g. :9633, 0.0.0.0:9633 (env LISTEN_ADDR)
+  --telemetry.path PATH       Full metrics path, default /metrics (env TELEMETRY_PATH)
+  --log.file PATH             Log file path, stdout, or stderr (env LOG_FILE)
+  --log.level LEVEL           debug, info, warn, error (env LOG_LEVEL)
+  --debug.enabled BOOL
+
+Smartctl:
+  --smartctl.path PATH              Path to smartctl.exe (env SMARTCTL_PATH)
+  --smartctl.installer-version VER  smartmontools installer version for auto-install
+
+Firewall:
+  --firewall.enabled BOOL     Ensure inbound rule on install/start (env FW_ENABLED)
+  --firewall.profile NAME     domain, private, public, or any (env FW_PROFILE)
+
+Flags accept --name=value or --name value. Boolean flags without value default to true.
+`, fullVersion())
 }
 
 type serviceHandler struct {
@@ -206,13 +227,14 @@ func (h *serviceHandler) Execute(args []string, r <-chan svc.ChangeRequest, s ch
 	if h.logEnabled {
 		if err := os.MkdirAll(filepath.Dir(h.logPath), 0755); err == nil {
 			if f, err := os.OpenFile(h.logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
-				_, _ = fmt.Fprintf(f, "[%s] service starting exporter %v\n", time.Now().Format(time.DateTime), h.args)
+				_, _ = fmt.Fprintf(f, "[%s] service starting %s exporter %v\n", time.Now().Format(time.DateTime), fullVersion(), h.args)
 				log.SetOutput(io.MultiWriter(f, os.Stderr))
 				defer f.Close()
 			}
 		}
 	}
 
+	log.Printf("smartctl-exporter %s starting (service)", fullVersion())
 	errCh := make(chan error, 1)
 	go func() { errCh <- exporter.Run(h.args) }()
 	s <- svc.Status{State: svc.Running, Accepts: accepted}
@@ -249,9 +271,9 @@ func runForeground(expArgs []string, cfg config.Config) error {
 			return err
 		}
 		defer f.Close()
-		_, _ = fmt.Fprintf(f, "[%s] foreground exporter %v\n", time.Now().Format(time.DateTime), expArgs)
+		_, _ = fmt.Fprintf(f, "[%s] foreground %s exporter %v\n", time.Now().Format(time.DateTime), fullVersion(), expArgs)
 		log.SetOutput(io.MultiWriter(os.Stdout, f))
 	}
-	log.Printf("running in-process exporter: %v", expArgs)
+	log.Printf("smartctl-exporter %s starting (foreground) %v", fullVersion(), expArgs)
 	return exporter.Run(expArgs)
 }

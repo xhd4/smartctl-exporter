@@ -21,7 +21,7 @@ import (
 const (
 	ServiceName   = "smartctl-exporter"
 	DisplayName   = "Smartctl Exporter"
-	Description   = "Prometheus smartctl exporter (S.M.A.R.T. metrics)"
+	Description   = "Windows service hosting prometheus-community/smartctl_exporter in-process (S.M.A.R.T. metrics via smartctl)"
 	AppFolderName = "smartctl-exporter"
 	HostExeName   = "smartctl-exporter.exe"
 )
@@ -77,6 +77,7 @@ func Install(cfg config.Config, dryRun bool) error {
 		fmt.Sprintf("Config (cwd): %s %s", cwdConfig, cwdAction),
 		fmt.Sprintf("Config (install): %s %s", configDest, pfAction),
 		fmt.Sprintf("Logs dir: %s", logDir),
+		fmt.Sprintf("smartctl: %s (auto-install if missing)", cfg.SmartctlPath),
 		fmt.Sprintf("Firewall: %s", fwRuleName),
 		fmt.Sprintf("Service: %s", ServiceName),
 		fmt.Sprintf("binPath: %s", binPathDisplay),
