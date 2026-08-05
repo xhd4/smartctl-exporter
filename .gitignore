@@ -1,0 +1,29 @@
+# Build / publish
+/dist/
+*.exe
+*.zip
+
+# Local configuration (may contain secrets)
+.env
+config.yaml
+config.env
+
+# Logs and runtime
+/logs/
+*.log
+
+# IDE
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temp
+.tmp*
+*.tmp

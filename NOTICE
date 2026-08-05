@@ -1,0 +1,10 @@
+Third-party notice
+==================
+
+This product vendors source from:
+
+  prometheus-community/smartctl_exporter v0.14.0
+  https://github.com/prometheus-community/smartctl_exporter
+
+Licensed under the Apache License, Version 2.0.
+See LICENSE.Apache-2.0.

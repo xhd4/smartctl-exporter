@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SMARTCTL_EXPORTER_VERSION: ${{ github.ref_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build zip
+        run: |
+          set -euo pipefail
+          VER="${SMARTCTL_EXPORTER_VERSION}"
+          case "$VER" in v*) ;; *) VER="v$VER" ;; esac
+          mkdir -p dist/windows-amd64
+          docker build \
+            --target artifact \
+            --build-arg SMARTCTL_EXPORTER_VERSION="$VER" \
+            --output type=local,dest=./dist/windows-amd64 \
+            .
+          test -f dist/windows-amd64/smartctl-exporter.exe
+          (cd dist/windows-amd64 && zip -q -r ../smartctl-exporter-windows-amd64.zip \
+            smartctl-exporter.exe)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smartctl-exporter-windows-amd64
+          path: dist/smartctl-exporter-windows-amd64.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          body_path: .github/release-body.md
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

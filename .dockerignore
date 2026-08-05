@@ -1,0 +1,9 @@
+dist/
+logs/
+.git/
+.env
+config.yaml
+*.log
+*.md
+*.exe
+*.zip

@@ -1,0 +1,20 @@
+log:
+  level: warn
+  file: C:\ProgramData\smartctl-exporter\logs\exporter.log
+
+telemetry:
+  path: /metrics
+
+web:
+  listen-address: :9633
+
+smartctl:
+  path: C:\Program Files\smartmontools\bin\smartctl.exe
+  installer_version: "7.5"
+
+firewall:
+  enabled: true
+  profile: any
+
+debug:
+  enabled: false
