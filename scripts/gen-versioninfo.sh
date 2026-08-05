@@ -56,8 +56,10 @@ cat >"$TMPDIR/versioninfo.json" <<EOF
 }
 EOF
 
+# Build goversioninfo for the host (ARG/env GOARCH must not cross-compile the tool).
 # shellcheck disable=SC2086
-go run github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.4.1 \
+GOOS="$(go env GOHOSTOS)" GOARCH="$(go env GOHOSTARCH)" \
+  go run github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.4.1 \
   $ARCHFLAGS \
   -o "$OUT" \
   "$TMPDIR/versioninfo.json"

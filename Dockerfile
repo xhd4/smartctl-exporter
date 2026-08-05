@@ -4,7 +4,7 @@ FROM golang:1.22-bookworm AS build
 
 ARG SMARTCTL_EXPORTER_VERSION=v0.14.0
 ARG GIT_COMMIT=unknown
-ARG GOARCH=amd64
+ARG TARGET_GOARCH=amd64
 
 WORKDIR /src
 
@@ -19,10 +19,10 @@ RUN chmod +x scripts/gen-versioninfo.sh \
  && ./scripts/gen-versioninfo.sh \
       "${SMARTCTL_EXPORTER_VERSION}" \
       "${GIT_COMMIT}" \
-      "${GOARCH}" \
+      "${TARGET_GOARCH}" \
       cmd/smartctl-exporter/resource.syso
 
-RUN CGO_ENABLED=0 GOOS=windows GOARCH=${GOARCH} go build -trimpath \
+RUN CGO_ENABLED=0 GOOS=windows GOARCH=${TARGET_GOARCH} go build -trimpath \
     -ldflags="-s -w -X main.version=${SMARTCTL_EXPORTER_VERSION} -X main.commit=${GIT_COMMIT}" \
     -o /out/smartctl-exporter.exe ./cmd/smartctl-exporter
 

@@ -31,7 +31,7 @@ jobs:
             --target artifact \
             --build-arg SMARTCTL_EXPORTER_VERSION="$VER" \
             --build-arg GIT_COMMIT="$COMMIT" \
-            --build-arg GOARCH="${{ matrix.goarch }}" \
+            --build-arg TARGET_GOARCH="${{ matrix.goarch }}" \
             --output type=local,dest=./dist/out-${{ matrix.goarch }} \
             .
           test -f "dist/out-${{ matrix.goarch }}/smartctl-exporter.exe"

@@ -28,7 +28,7 @@ DOCKER_BUILD := docker build \
 	--target artifact \
 	--build-arg SMARTCTL_EXPORTER_VERSION=$(SMARTCTL_EXPORTER_VERSION) \
 	--build-arg GIT_COMMIT=$(GIT_COMMIT) \
-	--build-arg GOARCH=$(GOARCH) \
+	--build-arg TARGET_GOARCH=$(GOARCH) \
 	--output type=local,dest=./$(PACKAGE_DIR) \
 	-f "$(CURDIR)/Dockerfile" \
 	"$(CURDIR)"
