@@ -1,30 +1,32 @@
 SHELL := /bin/sh
 
 DIST_DIR := dist
-ARCH ?= windows-amd64
+GOARCH ?= amd64
+ARCH ?= windows-$(GOARCH)
 SERVICE_NAME ?= smartctl-exporter
 HOST_EXE ?= smartctl-exporter.exe
 SMARTCTL_EXPORTER_VERSION ?= v0.14.0
 PACKAGE_DIR := $(DIST_DIR)/$(ARCH)
-ZIP_NAME := smartctl-exporter-$(ARCH).zip
+OUT_EXE := $(DIST_DIR)/smartctl-exporter-$(GOARCH).exe
 
 ifeq ($(OS),Windows_NT)
 	MKDIR_CMD := - mkdir $(PACKAGE_DIR)
 	STOP_SERVICE_CMD := powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(CURDIR)/scripts/stop-service.ps1" -ServiceName "$(SERVICE_NAME)" -DistDir "$(CURDIR)/$(PACKAGE_DIR)" -ExeName "$(HOST_EXE)"
 	START_SERVICE_CMD := powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(CURDIR)/scripts/start-service.ps1" -ServiceName "$(SERVICE_NAME)" -DistDir "$(CURDIR)/$(PACKAGE_DIR)" -ExeName "$(HOST_EXE)"
 	CLEAN_DIR_CMD := powershell.exe -NoProfile -Command "if (Test-Path '$(CURDIR)/$(DIST_DIR)') { Remove-Item -Recurse -Force '$(CURDIR)/$(DIST_DIR)' -ErrorAction SilentlyContinue }"
-	ZIP_CMD := powershell.exe -NoProfile -Command "Compress-Archive -Path '$(CURDIR)/$(PACKAGE_DIR)/smartctl-exporter.exe' -DestinationPath '$(CURDIR)/$(DIST_DIR)/$(ZIP_NAME)' -Force"
+	COPY_OUT_CMD := powershell.exe -NoProfile -Command "Copy-Item -Force '$(CURDIR)/$(PACKAGE_DIR)/smartctl-exporter.exe' '$(CURDIR)/$(OUT_EXE)'"
 else
 	MKDIR_CMD := mkdir -p $(PACKAGE_DIR)
 	STOP_SERVICE_CMD := @echo "skip stop-service-win (non-Windows)"
 	START_SERVICE_CMD := @echo "skip start-service-win (non-Windows)"
 	CLEAN_DIR_CMD := rm -rf $(DIST_DIR)
-	ZIP_CMD := (cd $(PACKAGE_DIR) && zip -q -r ../$(ZIP_NAME) smartctl-exporter.exe)
+	COPY_OUT_CMD := cp $(PACKAGE_DIR)/smartctl-exporter.exe $(OUT_EXE)
 endif
 
 DOCKER_BUILD := docker build \
 	--target artifact \
 	--build-arg SMARTCTL_EXPORTER_VERSION=$(SMARTCTL_EXPORTER_VERSION) \
+	--build-arg GOARCH=$(GOARCH) \
 	--output type=local,dest=./$(PACKAGE_DIR) \
 	-f "$(CURDIR)/Dockerfile" \
 	"$(CURDIR)"
@@ -37,19 +39,19 @@ help:
 	@echo "smartctl-exporter — make targets"
 	@echo ""
 	@echo "  docker-build-host    Build $(HOST_EXE) via Docker into $(PACKAGE_DIR)/"
-	@echo "  package-win          build + zip → $(DIST_DIR)/$(ZIP_NAME)"
+	@echo "  package-win          build → $(OUT_EXE)"
 	@echo "  docker-win           stop service, rebuild host, start service (Windows)"
 	@echo "  clean                Remove $(DIST_DIR)/"
 	@echo ""
-	@echo "Variables: SMARTCTL_EXPORTER_VERSION ARCH"
+	@echo "Variables: SMARTCTL_EXPORTER_VERSION GOARCH (amd64|arm64)"
 
 docker-build-host:
 	$(MKDIR_CMD)
 	$(DOCKER_BUILD)
 
 package-win: docker-build-host
-	$(ZIP_CMD)
-	@echo "Built $(DIST_DIR)/$(ZIP_NAME)"
+	$(COPY_OUT_CMD)
+	@echo "Built $(OUT_EXE)"
 
 docker-win: stop-service-win docker-build-host start-service-win
 

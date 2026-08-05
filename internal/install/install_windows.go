@@ -57,7 +57,7 @@ func Install(cfg config.Config, dryRun bool) error {
 	if err != nil {
 		return err
 	}
-	binPath := fmt.Sprintf(`"%s" --config.file="%s"`, hostDest, configDest)
+	binPath := fmt.Sprintf(`"%s"`, hostDest)
 
 	cwdAction := "(create new)"
 	if _, err := os.Stat(cwdConfig); err == nil {

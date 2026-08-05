@@ -8,7 +8,7 @@ Configuration follows windows_exporter-style conventions: `config.yaml`, `--log.
 
 ## Requirements
 
-- Windows 10/11 **amd64**
+- Windows 10/11 **amd64** or **arm64**
 - Administrator privileges for `--install` / `--uninstall`
 - [Docker](https://www.docker.com/) to cross-compile (or Go with `GOOS=windows`)
 - smartmontools (`smartctl`) — installed automatically on `--install` if missing (winget, then GitHub Releases fallback)
@@ -16,10 +16,9 @@ Configuration follows windows_exporter-style conventions: `config.yaml`, `--log.
 ## Build
 
 ```bash
-make package-win   # dist/smartctl-exporter-windows-amd64.zip
+make package-win              # dist/smartctl-exporter-amd64.exe
+make package-win GOARCH=arm64 # dist/smartctl-exporter-arm64.exe
 ```
-
-Zip contains `smartctl-exporter.exe` only.
 
 ```bash
 make docker-build-host
@@ -27,13 +26,13 @@ make docker-build-host
 
 ## Install
 
-Unpack the zip, then run **elevated**:
+Download the matching release `.exe`, then run **elevated**:
 
 ```powershell
-.\smartctl-exporter.exe --install
+.\smartctl-exporter-amd64.exe --install
 ```
 
-Installs to `%ProgramFiles%\smartctl-exporter\`, creates `./config.yaml` in the current directory if missing (then copies it into Program Files on first install), registers service `smartctl-exporter`, ensures firewall, and installs smartmontools if needed.
+Installs to `%ProgramFiles%\smartctl-exporter\` as `smartctl-exporter.exe`, creates `./config.yaml` in the current directory if missing (then copies it into Program Files on first install), registers service `smartctl-exporter`, ensures firewall, and installs smartmontools if needed.
 
 Preview:
 

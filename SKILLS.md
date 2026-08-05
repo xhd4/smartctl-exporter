@@ -28,8 +28,9 @@ Firewall rule points at the **same** `smartctl-exporter.exe` that listens for me
 | `cmd/smartctl-exporter/` | Windows host entrypoint |
 | `internal/exporter/` | Vendored upstream collector + HTTP |
 | `internal/` | config, install, firewall, smartmontools |
-| `dist/windows-amd64/` | Local package output |
-| `dist/smartctl-exporter-windows-amd64.zip` | Release archive (one exe) |
+| `dist/windows-amd64/` | Local Docker build output |
+| `dist/smartctl-exporter-amd64.exe` | Release binary (amd64) |
+| `dist/smartctl-exporter-arm64.exe` | Release binary (arm64) |
 | `config.yaml.example` | Committed template |
 | `config.yaml` | Local overrides (gitignored) |
 | `%ProgramFiles%\smartctl-exporter\` | Production install |
@@ -59,8 +60,8 @@ Version is LDFLAGS `-X main.version=` from `SMARTCTL_EXPORTER_VERSION` (default 
 - Reintroduce a separate `smartctl_exporter.exe` child
 - Reintroduce `service.bat` or `.env`-only install flow
 - Commit `config.yaml`, `.env`, `dist/`, or `logs/`
-- Bundle smartmontools inside the zip (install at `--install` time)
+- Bundle smartmontools inside the release (install at `--install` time)
 
 ## Release
 
-Tag `v*` → GitHub Actions builds zip with a single `smartctl-exporter.exe`.
+Tag `v*` → GitHub Actions builds `smartctl-exporter-amd64.exe` and `smartctl-exporter-arm64.exe`.

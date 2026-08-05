@@ -11,31 +11,35 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goarch: [amd64, arm64]
     env:
       SMARTCTL_EXPORTER_VERSION: ${{ github.ref_name }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build zip
+      - name: Build exe
         run: |
           set -euo pipefail
           VER="${SMARTCTL_EXPORTER_VERSION}"
           case "$VER" in v*) ;; *) VER="v$VER" ;; esac
-          mkdir -p dist/windows-amd64
+          mkdir -p dist
           docker build \
             --target artifact \
             --build-arg SMARTCTL_EXPORTER_VERSION="$VER" \
-            --output type=local,dest=./dist/windows-amd64 \
+            --build-arg GOARCH="${{ matrix.goarch }}" \
+            --output type=local,dest=./dist/out-${{ matrix.goarch }} \
             .
-          test -f dist/windows-amd64/smartctl-exporter.exe
-          (cd dist/windows-amd64 && zip -q -r ../smartctl-exporter-windows-amd64.zip \
-            smartctl-exporter.exe)
+          test -f "dist/out-${{ matrix.goarch }}/smartctl-exporter.exe"
+          cp "dist/out-${{ matrix.goarch }}/smartctl-exporter.exe" \
+            "dist/smartctl-exporter-${{ matrix.goarch }}.exe"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: smartctl-exporter-windows-amd64
-          path: dist/smartctl-exporter-windows-amd64.zip
+          name: smartctl-exporter-${{ matrix.goarch }}
+          path: dist/smartctl-exporter-${{ matrix.goarch }}.exe
 
   release:
     needs: build
@@ -52,7 +56,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*
+          files: artifacts/*.exe
           body_path: .github/release-body.md
           generate_release_notes: true
         env:
