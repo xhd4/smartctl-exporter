@@ -58,13 +58,17 @@ func Install(cfg config.Config, dryRun bool) error {
 	if err != nil {
 		return err
 	}
+	fwRuleName := fmt.Sprintf("%s%d)", firewall.RulePrefix, port)
+	binPathDisplay := fmt.Sprintf(`"%s" --config.file="%s"`, hostDest, configDest)
 
 	cwdAction := "(create new)"
 	if _, err := os.Stat(cwdConfig); err == nil {
 		cwdAction = "(keep existing)"
 	}
+	pfExists := false
 	pfAction := "(copy from cwd)"
 	if _, err := os.Stat(configDest); err == nil {
+		pfExists = true
 		pfAction = "(keep existing)"
 	}
 
@@ -72,11 +76,10 @@ func Install(cfg config.Config, dryRun bool) error {
 		fmt.Sprintf("Copy: %s -> %s", sourceHost, hostDest),
 		fmt.Sprintf("Config (cwd): %s %s", cwdConfig, cwdAction),
 		fmt.Sprintf("Config (install): %s %s", configDest, pfAction),
-		fmt.Sprintf("Logs: %s", logDir),
-		fmt.Sprintf("smartctl: %s (auto-install if missing)", cfg.SmartctlPath),
-		fmt.Sprintf("Firewall enabled=%v profile=%s port=%d", cfg.FirewallEnabled, cfg.FirewallProfile, port),
+		fmt.Sprintf("Logs dir: %s", logDir),
+		fmt.Sprintf("Firewall: %s", fwRuleName),
 		fmt.Sprintf("Service: %s", ServiceName),
-		fmt.Sprintf("binPath: %s", hostDest),
+		fmt.Sprintf("binPath: %s", binPathDisplay),
 		fmt.Sprintf("Metrics: http://localhost:%d%s", port, cfg.TelemetryPath),
 	})
 	if dryRun {
@@ -111,8 +114,18 @@ func Install(cfg config.Config, dryRun bool) error {
 		}
 	}
 
-	if _, err := os.Stat(configDest); os.IsNotExist(err) {
+	if !pfExists {
 		if err := copyFile(cwdConfig, configDest); err != nil {
+			return err
+		}
+	} else {
+		loaded, err := config.Load(installDir, configDest, nil)
+		if err != nil {
+			return err
+		}
+		cfg = loaded
+		port, err = cfg.ListenPort()
+		if err != nil {
 			return err
 		}
 	}
@@ -124,7 +137,7 @@ func Install(cfg config.Config, dryRun bool) error {
 		}
 	}
 
-	if err := createAndStartService(hostDest); err != nil {
+	if err := createAndStartService(hostDest, configDest); err != nil {
 		return err
 	}
 
@@ -198,7 +211,7 @@ func stopService() {
 	time.Sleep(1 * time.Second)
 }
 
-func createAndStartService(exePath string) error {
+func createAndStartService(exePath, configPath string) error {
 	m, err := mgr.Connect()
 	if err != nil {
 		return err
@@ -209,7 +222,7 @@ func createAndStartService(exePath string) error {
 		DisplayName: DisplayName,
 		Description: Description,
 		StartType:   mgr.StartAutomatic,
-	})
+	}, "--config.file", configPath)
 	if err != nil {
 		return fmt.Errorf("create service: %w", err)
 	}
