@@ -8,10 +8,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/svc"
+	"golang.org/x/sys/windows/svc/mgr"
 	"smartctl-exporter/internal/config"
 	"smartctl-exporter/internal/firewall"
 	"smartctl-exporter/internal/smartmontools"
@@ -57,7 +58,6 @@ func Install(cfg config.Config, dryRun bool) error {
 	if err != nil {
 		return err
 	}
-	binPath := fmt.Sprintf(`"%s"`, hostDest)
 
 	cwdAction := "(create new)"
 	if _, err := os.Stat(cwdConfig); err == nil {
@@ -76,7 +76,7 @@ func Install(cfg config.Config, dryRun bool) error {
 		fmt.Sprintf("smartctl: %s (auto-install if missing)", cfg.SmartctlPath),
 		fmt.Sprintf("Firewall enabled=%v profile=%s port=%d", cfg.FirewallEnabled, cfg.FirewallProfile, port),
 		fmt.Sprintf("Service: %s", ServiceName),
-		fmt.Sprintf("binPath: %s", binPath),
+		fmt.Sprintf("binPath: %s", hostDest),
 		fmt.Sprintf("Metrics: http://localhost:%d%s", port, cfg.TelemetryPath),
 	})
 	if dryRun {
@@ -124,11 +124,7 @@ func Install(cfg config.Config, dryRun bool) error {
 		}
 	}
 
-	if err := createService(binPath); err != nil {
-		return err
-	}
-	_ = configureRecovery()
-	if err := runSC(fmt.Sprintf("start %s", ServiceName)); err != nil {
+	if err := createAndStartService(hostDest); err != nil {
 		return err
 	}
 
@@ -184,32 +180,50 @@ func ensureAdmin() error {
 }
 
 func stopService() {
-	_ = runSC(fmt.Sprintf("stop %s", ServiceName))
+	m, err := mgr.Connect()
+	if err != nil {
+		return
+	}
+	defer m.Disconnect()
+
+	s, err := m.OpenService(ServiceName)
+	if err != nil {
+		return
+	}
+	defer s.Close()
+
+	_, _ = s.Control(svc.Stop)
 	time.Sleep(2 * time.Second)
-	_ = runSC(fmt.Sprintf("delete %s", ServiceName))
+	_ = s.Delete()
 	time.Sleep(1 * time.Second)
 }
 
-func createService(binPath string) error {
-	args := fmt.Sprintf(`create %s binPath= %s start= auto DisplayName= "%s"`, ServiceName, binPath, DisplayName)
-	if err := runSC(args); err != nil {
+func createAndStartService(exePath string) error {
+	m, err := mgr.Connect()
+	if err != nil {
 		return err
 	}
-	_ = runSC(fmt.Sprintf(`description %s "%s"`, ServiceName, Description))
-	return nil
-}
+	defer m.Disconnect()
 
-func configureRecovery() error {
-	_ = runSC(fmt.Sprintf("failure %s reset= 86400 actions= restart/60000/restart/60000/restart/60000", ServiceName))
-	_ = runSC(fmt.Sprintf("failureflag %s 1", ServiceName))
-	return nil
-}
-
-func runSC(arguments string) error {
-	cmd := exec.Command("cmd.exe", "/c", "sc.exe "+arguments)
-	out, err := cmd.CombinedOutput()
+	s, err := m.CreateService(ServiceName, exePath, mgr.Config{
+		DisplayName: DisplayName,
+		Description: Description,
+		StartType:   mgr.StartAutomatic,
+	})
 	if err != nil {
-		return fmt.Errorf("sc %s: %w: %s", arguments, err, strings.TrimSpace(string(out)))
+		return fmt.Errorf("create service: %w", err)
+	}
+	defer s.Close()
+
+	_ = s.SetRecoveryActions([]mgr.RecoveryAction{
+		{Type: mgr.ServiceRestart, Delay: 60 * time.Second},
+		{Type: mgr.ServiceRestart, Delay: 60 * time.Second},
+		{Type: mgr.ServiceRestart, Delay: 60 * time.Second},
+	}, 86400)
+	_ = s.SetRecoveryActionsOnNonCrashFailures(true)
+
+	if err := s.Start(); err != nil {
+		return fmt.Errorf("start service: %w", err)
 	}
 	return nil
 }
